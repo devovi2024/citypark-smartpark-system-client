@@ -2,10 +2,9 @@ import axios from "axios";
 
 const api = axios.create({
   baseURL: "https://citypark-server.vercel.app/api",
-  withCredentials: true,
 });
 
-// ATTACH TOKEN AUTOMATICALLY
+/* TOKEN AUTO ATTACH */
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
 

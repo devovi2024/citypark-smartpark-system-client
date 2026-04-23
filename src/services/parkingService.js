@@ -1,14 +1,11 @@
-import axiosInstance from "./api";
+import api from "./api";
 
-// GET ALL
 export const getAllParkings = async () => {
-  const res = await axiosInstance.get("/parkings");
+  const res = await api.get("/parkings");
   return res.data;
 };
 
-// GET ONE
 export const getParkingById = async (id) => {
-  const res = await axiosInstance.get(`/parkings/${id}`);
+  const res = await api.get(`/parkings/${id}`);
   return res.data;
 };
-

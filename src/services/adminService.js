@@ -1,109 +1,132 @@
-// src/services/adminService.js
-import axios from 'axios';
+import api from "./api";
 
-const API_BASE = 'http://localhost:5000/api/admin'; // Change to your backend URL
+const API_BASE = "/admin";
 
-// Helper to get auth token
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
-  return {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  };
-};
+/* ---------------- DASHBOARD ---------------- */
 
-// Dashboard
 export const fetchDashboardStats = async () => {
-  const { data } = await axios.get(`${API_BASE}/dashboard/stats`, getAuthHeaders());
+  const { data } = await api.get(`${API_BASE}/dashboard/stats`);
   return data;
 };
 
 export const fetchBookingTrends = async () => {
-  const { data } = await axios.get(`${API_BASE}/analytics/trends`, getAuthHeaders());
+  const { data } = await api.get(`${API_BASE}/analytics/trends`);
   return data;
 };
 
-// Users
-export const fetchUsers = async (page = 1, search = '') => {
-  const { data } = await axios.get(`${API_BASE}/users`, {
+/* ---------------- USERS ---------------- */
+
+export const fetchUsers = async (page = 1, search = "") => {
+  const { data } = await api.get(`${API_BASE}/users`, {
     params: { page, limit: 10, search },
-    ...getAuthHeaders(),
   });
   return data;
 };
 
 export const updateUserRole = async (userId, role) => {
-  const { data } = await axios.put(`${API_BASE}/users/${userId}/role`, { role }, getAuthHeaders());
+  const { data } = await api.put(
+    `${API_BASE}/users/${userId}/role`,
+    { role }
+  );
   return data;
 };
 
 export const toggleUserBlock = async (userId) => {
-  const { data } = await axios.patch(`${API_BASE}/users/${userId}/block`, {}, getAuthHeaders());
+  const { data } = await api.patch(
+    `${API_BASE}/users/${userId}/block`
+  );
   return data;
 };
 
-// Parks
-export const fetchParks = async (page = 1, search = '') => {
-  const { data } = await axios.get(`${API_BASE}/parks`, {
+/* ---------------- PARKS ---------------- */
+
+export const fetchParks = async (page = 1, search = "") => {
+  const { data } = await api.get(`${API_BASE}/parks`, {
     params: { page, limit: 10, search },
-    ...getAuthHeaders(),
   });
   return data;
 };
 
 export const createPark = async (parkData) => {
-  const { data } = await axios.post(`${API_BASE}/parks`, parkData, getAuthHeaders());
+  const { data } = await api.post(`${API_BASE}/parks`, parkData);
   return data;
 };
 
 export const updatePark = async (parkId, parkData) => {
-  const { data } = await axios.put(`${API_BASE}/parks/${parkId}`, parkData, getAuthHeaders());
+  const { data } = await api.put(
+    `${API_BASE}/parks/${parkId}`,
+    parkData
+  );
   return data;
 };
 
 export const deletePark = async (parkId) => {
-  const { data } = await axios.delete(`${API_BASE}/parks/${parkId}`, getAuthHeaders());
+  const { data } = await api.delete(
+    `${API_BASE}/parks/${parkId}`
+  );
   return data;
 };
 
-// Slots
-export const fetchSlots = async (page = 1, search = '', parkingId = '') => {
-  const { data } = await axios.get(`${API_BASE}/slots`, {
+/* ---------------- SLOTS ---------------- */
+
+export const fetchSlots = async (
+  page = 1,
+  search = "",
+  parkingId = ""
+) => {
+  const { data } = await api.get(`${API_BASE}/slots`, {
     params: { page, limit: 10, search, parkingId },
-    ...getAuthHeaders(),
   });
   return data;
 };
 
 export const createSlot = async (slotData) => {
-  const { data } = await axios.post(`${API_BASE}/slots`, slotData, getAuthHeaders());
+  const { data } = await api.post(`${API_BASE}/slots`, slotData);
   return data;
 };
 
 export const updateSlot = async (slotId, slotData) => {
-  const { data } = await axios.put(`${API_BASE}/slots/${slotId}`, slotData, getAuthHeaders());
+  const { data } = await api.put(
+    `${API_BASE}/slots/${slotId}`,
+    slotData
+  );
   return data;
 };
 
 export const deleteSlot = async (slotId) => {
-  const { data } = await axios.delete(`${API_BASE}/slots/${slotId}`, getAuthHeaders());
+  const { data } = await api.delete(
+    `${API_BASE}/slots/${slotId}`
+  );
   return data;
 };
 
-// Bookings
-export const fetchBookings = async (page = 1, search = '', filters = {}) => {
-  const { data } = await axios.get(`${API_BASE}/bookings`, {
+/* ---------------- BOOKINGS ---------------- */
+
+export const fetchBookings = async (
+  page = 1,
+  search = "",
+  filters = {}
+) => {
+  const { data } = await api.get(`${API_BASE}/bookings`, {
     params: { page, limit: 10, search, ...filters },
-    ...getAuthHeaders(),
   });
   return data;
 };
 
-export const updateBookingStatus = async (bookingId, status, paymentStatus = null) => {
+export const updateBookingStatus = async (
+  bookingId,
+  status,
+  paymentStatus = null
+) => {
   const payload = {};
+
   if (status) payload.status = status;
   if (paymentStatus) payload.paymentStatus = paymentStatus;
-  const { data } = await axios.patch(`${API_BASE}/bookings/${bookingId}/status`, payload, getAuthHeaders());
+
+  const { data } = await api.patch(
+    `${API_BASE}/bookings/${bookingId}/status`,
+    payload
+  );
+
   return data;
 };
