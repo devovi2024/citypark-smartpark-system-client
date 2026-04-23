@@ -7,7 +7,7 @@ export const ParkingProvider = ({ children }) => {
   const [parkings, setParkings] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // 🔥 FILTER STATES
+  //  FILTER STATES
   const [search, setSearch] = useState("");
   const [city, setCity] = useState("all");
 
@@ -26,7 +26,7 @@ export const ParkingProvider = ({ children }) => {
     fetchParkings();
   }, []);
 
-  // 🔥 FILTER LOGIC
+  // FILTER LOGIC
   const filteredParkings = parkings.filter((p) => {
     const matchSearch =
       p.name.toLowerCase().includes(search.toLowerCase()) ||

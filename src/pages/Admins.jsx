@@ -118,8 +118,7 @@ const Admins = () => {
     { id: 'parks', label: 'Parks', icon: <FiMapPin />, hasDropdown: true },
     { id: 'analytics', label: 'Analytics', icon: <FiPieChart /> },
     { id: 'settings', label: 'Settings', icon: <FiSettings /> },
-    { id: 'unique1', label: 'Unique Feature 1', icon: <FiStar /> },
-    { id: 'unique2', label: 'Unique Feature 2', icon: <FiMoreHorizontal /> },
+
   ];
 
   const renderContent = () => {

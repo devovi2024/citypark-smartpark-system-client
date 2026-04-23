@@ -48,7 +48,7 @@ export default function Navbar() {
                 <span className="text-white font-bold text-lg lg:text-xl">CP</span>
               </div>
               <span className="text-xl lg:text-2xl font-extrabold bg-gradient-to-r from-emerald-600 to-teal-700 bg-clip-text text-transparent">
-                CityPark
+                Smart Parking Finder
               </span>
         
             </Link>

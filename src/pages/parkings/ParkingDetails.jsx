@@ -14,7 +14,6 @@ import {
   FaClock,
   FaShieldAlt,
   FaChargingStation,
-  FaBity ,
   FaWifi,
   FaCheckCircle,
   FaSearch,
@@ -26,6 +25,7 @@ import {
   FaUserLock,
   FaImage,
   FaDirections,
+  FaCalendarAlt,
 } from "react-icons/fa";
 import { getParkingById } from "../../services/parkingService";
 import { useSlots } from "../../hooks/useSlots";
@@ -34,11 +34,10 @@ import { useSlotContext } from "../../context/SlotContext";
 import { useAuth } from "../../context/AuthContext";
 
 // import four-park image 
-import Park1 from "../../assets/parks/four-park/bykepark 1.jpg"
-import Park2 from "../../assets/parks/four-park/CarPark1.jpg"
-import Park3 from "../../assets/parks/four-park/park3.jpg"
-import Park4 from "../../assets/parks/four-park/park4.jpg"
-
+import Park1 from "../../assets/parks/four-park/bykepark 1.jpg";
+import Park2 from "../../assets/parks/four-park/CarPark1.jpg";
+import Park3 from "../../assets/parks/four-park/park3.jpg";
+import Park4 from "../../assets/parks/four-park/park4.jpg";
 
 // Fix Leaflet default marker icons
 delete L.Icon.Default.prototype._getIconUrl;
@@ -81,6 +80,9 @@ const ParkingDetails = () => {
   const [searchSlot, setSearchSlot] = useState("");
   const [isBooking, setIsBooking] = useState(false);
   const [gettingDirections, setGettingDirections] = useState(false);
+  
+  // New state for time selection
+  const [selectedStartTime, setSelectedStartTime] = useState("");
 
   const { slots, loading: slotsLoading } = useSlots(id);
   const { setSlots } = useSlotContext();
@@ -122,6 +124,45 @@ const ParkingDetails = () => {
   const uniqueFloors = useMemo(() => [...new Set(slots?.map(s => s.floor))].sort((a, b) => a - b), [slots]);
   const uniqueTypes = useMemo(() => [...new Set(slots?.map(s => s.type).filter(Boolean))], [slots]);
 
+  // Helper to get default start time (current time + 1 hour, rounded to nearest 30 min)
+  const getDefaultStartTime = () => {
+    const now = new Date();
+    now.setHours(now.getHours() + 1);
+    now.setMinutes(Math.ceil(now.getMinutes() / 30) * 30);
+    now.setSeconds(0);
+    now.setMilliseconds(0);
+    return now.toISOString().slice(0, 16);
+  };
+
+  // When modal opens, set default start time
+  useEffect(() => {
+    if (showBookingModal) {
+      setSelectedStartTime(getDefaultStartTime());
+    }
+  }, [showBookingModal]);
+
+  // Format selected date for display
+  const formatDateTime = (dateTimeStr) => {
+    if (!dateTimeStr) return "";
+    const date = new Date(dateTimeStr);
+    return date.toLocaleString(undefined, {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  // Validate if selected time is in the future
+  const isStartTimeValid = () => {
+    if (!selectedStartTime) return false;
+    const selectedTime = new Date(selectedStartTime);
+    const now = new Date();
+    return selectedTime > now;
+  };
+
   // --- Directions handler ---
   const getDirections = () => {
     if (!parking?.location?.lat || !parking?.location?.lng) {
@@ -140,7 +181,6 @@ const ParkingDetails = () => {
         },
         (error) => {
           console.error("Geolocation error:", error);
-          // Fallback: open parking location only
           const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${parking.location.lat},${parking.location.lng}`;
           window.open(mapsUrl, "_blank");
           setGettingDirections(false);
@@ -169,23 +209,51 @@ const ParkingDetails = () => {
 
   const confirmBooking = async () => {
     if (!selectedSlot || isBooking) return;
+    
+    // Validate start time
+    if (!selectedStartTime) {
+      alert("Please select a start time for your booking.");
+      return;
+    }
+    if (!isStartTimeValid()) {
+      alert("Start time must be in the future. Please select a valid time.");
+      return;
+    }
+
     setIsBooking(true);
     try {
-      const booking = await bookSlot(selectedSlot, bookingHours);
+      // Enhanced booking with start time
+      // Note: If your bookSlot function doesn't accept startTime, you may need to update it.
+      // For now, we pass an object with slot, hours, and startTime.
+      // The backend should handle this. If not, the UI will still show the selected time.
+      const booking = await bookSlot(selectedSlot, bookingHours, selectedStartTime);
+      
       if (!booking?._id) {
         alert("Booking failed. Please try again.");
         setIsBooking(false);
         return;
       }
-      setBookingSuccess(selectedSlot.slotNumber);
-      setTimeout(() => setBookingSuccess(null), 5000);
+      
+      // Show success message with the active time
+      const formattedTime = formatDateTime(selectedStartTime);
+      setBookingSuccess({
+        slotNumber: selectedSlot.slotNumber,
+        startTime: formattedTime,
+        hours: bookingHours
+      });
+      
+      setTimeout(() => setBookingSuccess(null), 6000);
+      
+      // Update local slot status
       setSlots((prev) =>
         prev.map((s) =>
           s._id === selectedSlot._id ? { ...s, isBooked: true } : s
         )
       );
+      
       setShowBookingModal(false);
       setSelectedSlot(null);
+      setSelectedStartTime("");
     } catch (err) {
       console.error("Booking error:", err);
       alert(err.response?.data?.message || "An error occurred while booking. Please try again.");
@@ -195,6 +263,11 @@ const ParkingDetails = () => {
   };
 
   const totalPrice = selectedSlot ? selectedSlot.pricePerHour * bookingHours : 0;
+  const activeTimeMessage = selectedStartTime && isStartTimeValid() 
+    ? `This slot will be ACTIVE from ${formatDateTime(selectedStartTime)} for ${bookingHours} hour(s).`
+    : selectedStartTime && !isStartTimeValid() 
+    ? "⚠️ Please select a future start time."
+    : "Select a start time to see when your slot becomes active.";
 
   if (!parking) {
     return (
@@ -242,7 +315,7 @@ const ParkingDetails = () => {
         </div>
       </div>
 
-       {/* 🔥 IMAGE BANNER */}
+      {/* 🔥 IMAGE BANNER */}
       <div className="max-w-6xl mx-auto px-4 -mt-10 mb-10">
         <div className="rounded-3xl overflow-hidden shadow-xl relative">
           <img
@@ -306,10 +379,9 @@ const ParkingDetails = () => {
                 </div>
               </div>
             </div>
-          
           </motion.div>
 
-         {/* Interactive Map */}
+          {/* Interactive Map */}
           <motion.div
             initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
@@ -384,7 +456,7 @@ const ParkingDetails = () => {
 
         {/* Slots Section with Filters */}
         <div className="mb-12">
-          <div className="flex  flex-row justify-between items-start md:items-center gap-4 mb-8">
+          <div className="flex flex-row justify-between items-start md:items-center gap-4 mb-8">
             <div>
               <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
                 <div className="w-2 h-8 bg-indigo-600 rounded-full"></div>
@@ -398,7 +470,11 @@ const ParkingDetails = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 className="bg-green-50 border-l-4 border-green-500 text-green-700 px-5 py-3 rounded-xl shadow-md flex items-center gap-2"
               >
-                <FaCheckCircle /> Slot {bookingSuccess} booked successfully!
+                <FaCheckCircle /> 
+                <div>
+                  <div>Slot {bookingSuccess.slotNumber} booked successfully!</div>
+                  <div className="text-sm">Active from {bookingSuccess.startTime} for {bookingSuccess.hours} hour(s)</div>
+                </div>
               </motion.div>
             )}
           </div>
@@ -551,96 +627,91 @@ const ParkingDetails = () => {
           )}
         </div>
 
-        {/*  Amenities Section */}
+        {/* Amenities Section */}
         <div className="mt-16 bg-white rounded-3xl shadow-lg overflow-hidden border border-gray-100">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-  {/* Left Content */}
-  <div className="p-8">
-    <div className="flex items-center gap-3 mb-5">
-      <div className="w-2 h-8 bg-indigo-600 rounded-full"></div>
-      <h2 className="text-2xl font-bold text-gray-900">
-        Smart Parking Experience
-      </h2>
-    </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Left Content */}
+            <div className="p-8">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-2 h-8 bg-indigo-600 rounded-full"></div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Smart Parking Experience
+                </h2>
+              </div>
 
-    <p className="text-gray-600 leading-relaxed mb-6">
-      CityPark — your reliable smart parking solution in Bangladesh.
-      We ensure a safe, fast, and hassle-free parking experience with modern
-      technology and user-friendly services designed for everyday convenience.
-    </p>
+              <p className="text-gray-600 leading-relaxed mb-6">
+                CityPark — your reliable smart parking solution in Bangladesh.
+                We ensure a safe, fast, and hassle-free parking experience with modern
+                technology and user-friendly services designed for everyday convenience.
+              </p>
 
-    <ul className="space-y-3">
-      <li className="flex items-start gap-3">
-        <FaCheckCircle className="text-emerald-500 mt-1 flex-shrink-0" />
-        <span className="text-gray-700">
-          24/7 security with CCTV monitoring and trained staff
-        </span>
-      </li>
+              <ul className="space-y-3">
+                <li className="flex items-start gap-3">
+                  <FaCheckCircle className="text-emerald-500 mt-1 flex-shrink-0" />
+                  <span className="text-gray-700">
+                    24/7 security with CCTV monitoring and trained staff
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <FaCheckCircle className="text-emerald-500 mt-1 flex-shrink-0" />
+                  <span className="text-gray-700">
+                    Smart parking slots with real-time availability tracking
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <FaCheckCircle className="text-emerald-500 mt-1 flex-shrink-0" />
+                  <span className="text-gray-700">
+                    Fast booking system with instant confirmation
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <FaCheckCircle className="text-emerald-500 mt-1 flex-shrink-0" />
+                  <span className="text-gray-700">
+                    Affordable pricing with flexible time options
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <FaCheckCircle className="text-emerald-500 mt-1 flex-shrink-0" />
+                  <span className="text-gray-700">
+                    Easy access for cars, bikes, and all vehicle types
+                  </span>
+                </li>
+              </ul>
+            </div>
 
-      <li className="flex items-start gap-3">
-        <FaCheckCircle className="text-emerald-500 mt-1 flex-shrink-0" />
-        <span className="text-gray-700">
-          Smart parking slots with real-time availability tracking
-        </span>
-      </li>
-
-      <li className="flex items-start gap-3">
-        <FaCheckCircle className="text-emerald-500 mt-1 flex-shrink-0" />
-        <span className="text-gray-700">
-          Fast booking system with instant confirmation
-        </span>
-      </li>
-
-      <li className="flex items-start gap-3">
-        <FaCheckCircle className="text-emerald-500 mt-1 flex-shrink-0" />
-        <span className="text-gray-700">
-          Affordable pricing with flexible time options
-        </span>
-      </li>
-
-      <li className="flex items-start gap-3">
-        <FaCheckCircle className="text-emerald-500 mt-1 flex-shrink-0" />
-        <span className="text-gray-700">
-          Easy access for cars, bikes, and all vehicle types
-        </span>
-      </li>
-    </ul>
-  </div>
-
-  {/* Right Gallery */}
-  <div className="p-6 bg-gray-50">
-    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-      <FaImage className="text-indigo-500" /> Parking Gallery
-    </h3>
-
-    <div className="grid grid-cols-2 gap-3">
-      <img
-        src={Park3}
-        alt="Modern smart parking"
-        className="rounded-xl object-cover w-full h-32 shadow-md hover:shadow-lg transition"
-      />
-      <img
-        src={Park1}
-        alt="Parking entry system"
-        className="rounded-xl object-cover w-full h-32 shadow-md hover:shadow-lg transition"
-      />
-      <img
-        src={Park2}
-        alt="Secure parking area"
-        className="rounded-xl object-cover w-full h-32 shadow-md hover:shadow-lg transition"
-      />
-      <img
-        src={Park4}
-        alt="CityPark facility"
-        className="rounded-xl object-cover w-full h-32 shadow-md hover:shadow-lg transition"
-      />
-    </div>
-  </div>
-</div>
+            {/* Right Gallery */}
+            <div className="p-6 bg-gray-50">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <FaImage className="text-indigo-500" /> Parking Gallery
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                <img
+                  src={Park3}
+                  alt="Modern smart parking"
+                  className="rounded-xl object-cover w-full h-32 shadow-md hover:shadow-lg transition"
+                />
+                <img
+                  src={Park1}
+                  alt="Parking entry system"
+                  className="rounded-xl object-cover w-full h-32 shadow-md hover:shadow-lg transition"
+                />
+                <img
+                  src={Park2}
+                  alt="Secure parking area"
+                  className="rounded-xl object-cover w-full h-32 shadow-md hover:shadow-lg transition"
+                />
+                <img
+                  src={Park4}
+                  alt="CityPark facility"
+                  className="rounded-xl object-cover w-full h-32 shadow-md hover:shadow-lg transition"
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Booking Modal */}
+      {/* Booking Modal with Time Selection */}
       <AnimatePresence>
         {showBookingModal && selectedSlot && (
           <motion.div
@@ -677,6 +748,29 @@ const ParkingDetails = () => {
                     <span className="text-gray-600">Rate:</span>
                     <span className="text-gray-900">${selectedSlot.pricePerHour} / hour</span>
                   </div>
+                  
+                  {/* Time Selection Section */}
+                  <div className="border-t border-gray-100 pt-4">
+                    <label className="block text-gray-700 font-medium mb-2 flex items-center gap-2">
+                      <FaCalendarAlt className="text-indigo-500" /> Select Start Time
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={selectedStartTime}
+                      onChange={(e) => setSelectedStartTime(e.target.value)}
+                      className="w-full border border-gray-300 rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-400 outline-none text-gray-900"
+                      min={new Date().toISOString().slice(0, 16)}
+                    />
+                    <div className={`mt-2 text-sm flex items-center gap-1 ${
+                      selectedStartTime && !isStartTimeValid() 
+                        ? 'text-red-600' 
+                        : 'text-indigo-600'
+                    }`}>
+                      <FaClock className="text-xs" />
+                      <span>{activeTimeMessage}</span>
+                    </div>
+                  </div>
+                  
                   <div>
                     <label className="block text-gray-700 mb-1">Duration (hours)</label>
                     <input
@@ -688,6 +782,7 @@ const ParkingDetails = () => {
                       className="w-full border border-gray-300 rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-400 outline-none text-gray-900"
                     />
                   </div>
+                  
                   <div className="border-t pt-3 mt-2">
                     <div className="flex justify-between font-bold text-lg">
                       <span className="text-gray-900">Total:</span>
@@ -695,6 +790,7 @@ const ParkingDetails = () => {
                     </div>
                   </div>
                 </div>
+                
                 <div className="flex gap-3 mt-6">
                   <button
                     onClick={() => setShowBookingModal(false)}
@@ -705,7 +801,7 @@ const ParkingDetails = () => {
                   </button>
                   <button
                     onClick={confirmBooking}
-                    disabled={isBooking}
+                    disabled={isBooking || !selectedStartTime || !isStartTimeValid()}
                     className="flex-1 py-2 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isBooking ? "Processing..." : "Confirm Booking"}

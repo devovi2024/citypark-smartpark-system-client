@@ -7,11 +7,15 @@ const AdminRoute = () => {
   if (loading) return <p>Loading...</p>;
 
   if (!user) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" replace />;
   }
 
-  if (user.role !== "admin") {
-    return <Navigate to="/admin" />;
+  const role = user?.role
+    ? user.role.toString().toLowerCase().trim()
+    : "";
+
+  if (role !== "admin") {
+    return <Navigate to="/" replace />;
   }
 
   return <Outlet />;

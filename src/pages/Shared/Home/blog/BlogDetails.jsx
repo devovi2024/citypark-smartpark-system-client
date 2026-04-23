@@ -23,7 +23,7 @@ const BlogDetails = () => {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-4 max-w-4xl">
         {/* Back button */}
-        <Link to="/" className="inline-flex items-center gap-2 text-green-700 hover:text-green-900 mb-6">
+        <Link to="/all-blogs" className="inline-flex items-center gap-2 text-green-700 hover:text-green-900 mb-6">
           ← সব ব্লগ দেখুন
         </Link>
         
