@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAdmin } from '../hooks/useAdmin';
 import {
-  FiMenu, FiUsers, FiMapPin, FiCalendar,
-  FiPlus, FiEdit2, FiTrash2, FiX
+  FiMenu, FiUsers, FiMapPin, FiCalendar, FiGrid,
+  FiPlus, FiEdit2, FiTrash2, FiSearch, FiX
 } from 'react-icons/fi';
 
 import {
@@ -13,11 +13,8 @@ import {
 /* ================= TOAST ================= */
 const ToastContainer = ({ toasts, removeToast }) => (
   <div className="fixed bottom-5 right-5 space-y-2 z-50">
-    {toasts.map(t => (
-      <div
-        key={t.id}
-        className="bg-black/80 text-white px-4 py-2 rounded-xl shadow-lg backdrop-blur flex items-center gap-2"
-      >
+    {toasts?.map(t => (
+      <div key={t.id} className="bg-black text-white px-4 py-2 rounded-xl flex items-center gap-2 shadow-lg">
         {t.message}
         <button onClick={() => removeToast(t.id)}><FiX /></button>
       </div>
@@ -25,89 +22,143 @@ const ToastContainer = ({ toasts, removeToast }) => (
   </div>
 );
 
-/* ================= ADMIN ================= */
+/* ================= MAIN ADMIN ================= */
 const Admins = () => {
   const {
     dashboardStats,
     parks,
+    slots,
     bookings,
     users,
+
     fetchDashboard,
     fetchParks,
+    fetchSlots,
+    fetchBookings,
+    fetchUsers,
+
     createPark,
     updatePark,
     deletePark,
+
+    createSlot,
+    updateSlot,
+    deleteSlot,
+
+    toggleBlockUser,
+    updateBooking,
+
     toasts,
     removeToast
   } = useAdmin();
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  /* ================= STATE ================= */
   const [active, setActive] = useState('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const [showModal, setShowModal] = useState(false);
-  const [editPark, setEditPark] = useState(null);
+  const [showParkModal, setShowParkModal] = useState(false);
+  const [editingPark, setEditingPark] = useState(null);
+
+  const [showSlotModal, setShowSlotModal] = useState(false);
+  const [editingSlot, setEditingSlot] = useState(null);
+
+  const [parkSearch, setParkSearch] = useState('');
 
   /* ================= LOAD ================= */
   useEffect(() => {
     fetchDashboard();
     fetchParks(1, '');
+    fetchSlots(1, '');
+    fetchBookings(1, '');
+    fetchUsers(1, '');
   }, []);
 
+  /* ================= SAFE DATA ================= */
   const stats = dashboardStats || {};
 
-  /* ================= FORM ================= */
-  const [form, setForm] = useState({
+  const totalUsers = stats.totalUsers || 0;
+  const totalBookings = stats.totalBookings || 0;
+  const totalParks = stats.totalParks || 0;
+  const totalSlots = stats.totalSlots || 0;
+  const totalRevenue = stats.totalRevenue || 0;
+
+  /* ================= PARK FORM ================= */
+  const [parkForm, setParkForm] = useState({
     name: '',
-    location: { city: '', address: '' },
+    description: '',
+    image: '',
+    location: { address: '', city: '', lat: 0, lng: 0 },
     totalSlots: 0,
+    availableSlots: 0,
+    pricePerHour: 0,
+    type: 'street'
+  });
+
+  useEffect(() => {
+    if (editingPark) setParkForm(editingPark);
+  }, [editingPark]);
+
+  /* ================= SLOT FORM ================= */
+  const [slotForm, setSlotForm] = useState({
+    parkingId: '',
+    slotNumber: '',
+    type: 'car',
+    isBooked: false,
     pricePerHour: 0
   });
 
   useEffect(() => {
-    if (editPark) setForm(editPark);
-  }, [editPark]);
+    if (editingSlot) setSlotForm(editingSlot);
+  }, [editingSlot]);
 
-  /* ================= SAVE ================= */
-  const handleSave = () => {
-    if (editPark) updatePark(editPark._id, form);
-    else createPark(form);
+  /* ================= SAVE PARK ================= */
+  const handleSavePark = () => {
+    if (editingPark) updatePark(editingPark._id, parkForm);
+    else createPark(parkForm);
 
-    setShowModal(false);
-    setEditPark(null);
+    setShowParkModal(false);
+    setEditingPark(null);
+  };
+
+  /* ================= SAVE SLOT ================= */
+  const handleSaveSlot = () => {
+    if (editingSlot) updateSlot(editingSlot._id, slotForm);
+    else createSlot(slotForm);
+
+    setShowSlotModal(false);
+    setEditingSlot(null);
   };
 
   /* ================= UI CARD ================= */
-  const Card = ({ title, value, color }) => (
-    <div className={`p-5 rounded-2xl shadow-lg text-white ${color}`}>
-      <p className="opacity-80">{title}</p>
+  const Card = ({ title, value }) => (
+    <div className="bg-white rounded-2xl shadow p-5">
+      <p className="text-gray-500">{title}</p>
       <h2 className="text-2xl font-bold">{value}</h2>
     </div>
   );
 
+  /* ================= RENDER ================= */
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-100 to-gray-200">
+    <div className="flex h-screen bg-gray-100">
 
       {/* ================= SIDEBAR ================= */}
-      <div className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white/70 backdrop-blur-xl shadow-xl transition-all`}>
-        <button
-          className="p-4 text-xl"
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-        >
+      <div className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white shadow-xl transition-all`}>
+        <button className="p-3" onClick={() => setSidebarOpen(!sidebarOpen)}>
           <FiMenu />
         </button>
 
-        <div className="space-y-3 p-3">
-          <button onClick={() => setActive('dashboard')} className="flex gap-2 hover:bg-blue-100 p-2 rounded">
-            📊 Dashboard
+        <div className="p-2 space-y-2">
+          <button onClick={() => setActive('dashboard')} className="flex gap-2 p-2 hover:bg-gray-200 rounded">
+            Dashboard
           </button>
-          <button onClick={() => setActive('parks')} className="flex gap-2 hover:bg-blue-100 p-2 rounded">
+          <button onClick={() => setActive('parks')} className="flex gap-2 p-2 hover:bg-gray-200 rounded">
             <FiMapPin /> Parks
           </button>
-          <button onClick={() => setActive('users')} className="flex gap-2 hover:bg-blue-100 p-2 rounded">
-            <FiUsers /> Users
+          <button onClick={() => setActive('slots')} className="flex gap-2 p-2 hover:bg-gray-200 rounded">
+            <FiGrid /> Slots
           </button>
-          <button onClick={() => setActive('bookings')} className="flex gap-2 hover:bg-blue-100 p-2 rounded">
-            <FiCalendar /> Bookings
+          <button onClick={() => setActive('users')} className="flex gap-2 p-2 hover:bg-gray-200 rounded">
+            <FiUsers /> Users
           </button>
         </div>
       </div>
@@ -115,71 +166,57 @@ const Admins = () => {
       {/* ================= CONTENT ================= */}
       <div className="flex-1 p-6 overflow-y-auto">
 
-        {/* ================= DASHBOARD ================= */}
+        {/* DASHBOARD */}
         {active === 'dashboard' && (
-          <div className="space-y-6">
-
-            <div className="grid grid-cols-4 gap-4">
-              <Card title="Users" value={stats.totalUsers || 0} color="bg-gradient-to-r from-blue-500 to-blue-700" />
-              <Card title="Bookings" value={stats.totalBookings || 0} color="bg-gradient-to-r from-green-500 to-green-700" />
-              <Card title="Parks" value={stats.totalParks || 0} color="bg-gradient-to-r from-purple-500 to-purple-700" />
-              <Card title="Revenue" value={`$${stats.totalRevenue || 0}`} color="bg-gradient-to-r from-pink-500 to-pink-700" />
-            </div>
-
+          <div className="grid grid-cols-4 gap-4">
+            <Card title="Users" value={totalUsers} />
+            <Card title="Bookings" value={totalBookings} />
+            <Card title="Parks" value={totalParks} />
+            <Card title="Revenue" value={`$${totalRevenue}`} />
           </div>
         )}
 
         {/* ================= PARKS ================= */}
         {active === 'parks' && (
-          <div className="bg-white/70 backdrop-blur-xl rounded-2xl shadow-xl p-5">
+          <div className="bg-white p-4 rounded-2xl shadow">
 
             <div className="flex justify-between mb-4">
-              <h2 className="text-xl font-bold">Parking Management</h2>
+              <h2 className="text-xl font-bold">Parking</h2>
 
               <button
                 onClick={() => {
-                  setEditPark(null);
-                  setShowModal(true);
+                  setEditingPark(null);
+                  setShowParkModal(true);
                 }}
-                className="bg-blue-600 text-white px-4 py-2 rounded-xl shadow"
+                className="bg-blue-600 text-white px-4 py-2 rounded"
               >
-                <FiPlus /> Add Park
+                <FiPlus /> Add
               </button>
             </div>
 
             <table className="w-full">
               <thead>
-                <tr className="text-left border-b">
+                <tr>
                   <th>Name</th>
                   <th>City</th>
                   <th>Slots</th>
                   <th>Price</th>
-                  <th>Action</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
 
               <tbody>
-                {parks.data?.map(p => (
-                  <tr key={p._id} className="border-b hover:bg-gray-100">
+                {parks?.data?.map(p => (
+                  <tr key={p._id} className="border-b">
                     <td>{p.name}</td>
                     <td>{p.location?.city}</td>
                     <td>{p.totalSlots}</td>
-                    <td>${p.pricePerHour}</td>
+                    <td>{p.pricePerHour}</td>
                     <td className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          setEditPark(p);
-                          setShowModal(true);
-                        }}
-                        className="text-blue-600"
-                      >
+                      <button onClick={() => { setEditingPark(p); setShowParkModal(true); }}>
                         <FiEdit2 />
                       </button>
-
-                      <button
-                        onClick={() => deletePark(p._id)}
-                        className="text-red-500"
-                      >
+                      <button onClick={() => deletePark(p._id)}>
                         <FiTrash2 />
                       </button>
                     </td>
@@ -191,81 +228,90 @@ const Admins = () => {
           </div>
         )}
 
+        {/* ================= SLOTS ================= */}
+        {active === 'slots' && (
+          <div className="bg-white p-4 rounded-2xl shadow">
+            <h2 className="text-xl font-bold mb-4">Slots</h2>
+
+            <table className="w-full">
+              <thead>
+                <tr>
+                  <th>Park</th>
+                  <th>Slot</th>
+                  <th>Type</th>
+                  <th>Booked</th>
+                  <th>Price</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {slots?.data?.map(s => (
+                  <tr key={s._id} className="border-b">
+                    <td>{s.parkingId?.name}</td>
+                    <td>{s.slotNumber}</td>
+                    <td>{s.type}</td>
+                    <td>{s.isBooked ? 'Yes' : 'No'}</td>
+                    <td>{s.pricePerHour}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+          </div>
+        )}
+
       </div>
 
-      {/* ================= MODAL ================= */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur flex items-center justify-center">
+      {/* ================= PARK MODAL ================= */}
+      {showParkModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-xl w-[450px]">
 
-          <div className="bg-white rounded-2xl p-6 w-[450px] shadow-2xl">
-
-            <h2 className="text-xl font-bold mb-4">
-              {editPark ? 'Edit Park' : 'Add Park'}
+            <h2 className="text-xl font-bold mb-3">
+              {editingPark ? 'Edit Park' : 'Add Park'}
             </h2>
 
-            <input
-              className="w-full border p-2 rounded mb-2"
+            <input className="border p-2 w-full mb-2"
               placeholder="Name"
-              value={form.name}
-              onChange={e => setForm({ ...form, name: e.target.value })}
+              value={parkForm.name}
+              onChange={e => setParkForm({ ...parkForm, name: e.target.value })}
             />
 
-            <input
-              className="w-full border p-2 rounded mb-2"
+            <input className="border p-2 w-full mb-2"
               placeholder="City"
-              value={form.location.city}
-              onChange={e =>
-                setForm({
-                  ...form,
-                  location: { ...form.location, city: e.target.value }
-                })
-              }
+              value={parkForm.location.city}
+              onChange={e => setParkForm({
+                ...parkForm,
+                location: { ...parkForm.location, city: e.target.value }
+              })}
             />
 
-            <input
-              className="w-full border p-2 rounded mb-2"
+            <input className="border p-2 w-full mb-2"
               placeholder="Address"
-              value={form.location.address}
-              onChange={e =>
-                setForm({
-                  ...form,
-                  location: { ...form.location, address: e.target.value }
-                })
-              }
+              value={parkForm.location.address}
+              onChange={e => setParkForm({
+                ...parkForm,
+                location: { ...parkForm.location, address: e.target.value }
+              })}
             />
 
-            <input
-              className="w-full border p-2 rounded mb-2"
+            <input className="border p-2 w-full mb-2"
               type="number"
               placeholder="Slots"
-              value={form.totalSlots}
-              onChange={e =>
-                setForm({ ...form, totalSlots: +e.target.value })
-              }
+              value={parkForm.totalSlots}
+              onChange={e => setParkForm({ ...parkForm, totalSlots: +e.target.value })}
             />
 
-            <input
-              className="w-full border p-2 rounded mb-4"
+            <input className="border p-2 w-full mb-2"
               type="number"
               placeholder="Price"
-              value={form.pricePerHour}
-              onChange={e =>
-                setForm({ ...form, pricePerHour: +e.target.value })
-              }
+              value={parkForm.pricePerHour}
+              onChange={e => setParkForm({ ...parkForm, pricePerHour: +e.target.value })}
             />
 
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 bg-gray-200 rounded-xl"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={handleSave}
-                className="px-4 py-2 bg-blue-600 text-white rounded-xl"
-              >
+            <div className="flex justify-end gap-2 mt-3">
+              <button onClick={() => setShowParkModal(false)}>Cancel</button>
+              <button onClick={handleSavePark} className="bg-blue-600 text-white px-4 py-2 rounded">
                 Save
               </button>
             </div>
